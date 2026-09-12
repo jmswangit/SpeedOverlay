@@ -22,7 +22,7 @@
 #define SPEED_GAP_BASE 8.0
 #define SPEED_SIDE_PAD 8.0
 
-#define SPEED_LEFT_INSET 2.0
+#define SPEED_LEFT_INSET 0.0
 #define SPEED_LANDSCAPE_LEFT_INSET 54.0
 
 // YTVideoOverlay's "Video Overlay" settings section.
@@ -310,16 +310,10 @@ static YTQTMButton *SpeedMakeButton(NSString *title, NSString *accessibilityLabe
     CGFloat height = contentHeight + pad * 2.0;
     CGSize bounds = self.view.bounds.size;
 
-    BOOL landscape = NO;
-    if (@available(iOS 13.0, *)) {
-        UIWindowScene *windowScene = self.view.window.windowScene;
-        if (windowScene) {
-            landscape = UIInterfaceOrientationIsLandscape(windowScene.interfaceOrientation);
-        }
-    }
-    if (!landscape) {
-        landscape = bounds.width > bounds.height;
-    }
+    // Use the window (full screen) rather than the video view, which is 16:9
+    // and therefore wider than tall even in portrait.
+    CGRect referenceBounds = self.view.window ? self.view.window.bounds : [UIScreen mainScreen].bounds;
+    BOOL landscape = referenceBounds.size.width > referenceBounds.size.height;
 
     CGFloat left = SPEED_LEFT_INSET;
     if (landscape) {
@@ -350,7 +344,7 @@ static YTQTMButton *SpeedMakeButton(NSString *title, NSString *accessibilityLabe
     }
     if (oval) {
         oval.frame = container.bounds;
-        UIBezierPath *path = [UIBezierPath bezierPathWithRoundedRect:container.bounds cornerRadius:container.bounds.size.width / 2.0];
+        UIBezierPath *path = [UIBezierPath bezierPathWithRoundedRect:container.bounds cornerRadius:container.bounds.size.width / 4.0];
         oval.path = path.CGPath;
         oval.shadowPath = path.CGPath;
     }
