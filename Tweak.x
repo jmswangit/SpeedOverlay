@@ -1,4 +1,5 @@
 #import <UIKit/UIKit.h>
+#import <QuartzCore/QuartzCore.h>
 #import <float.h>
 #import <YouTubeHeader/UIView+YouTube.h>
 #import <YouTubeHeader/YTColor.h>
@@ -21,7 +22,7 @@
 #define SPEED_GAP_BASE 8.0
 #define SPEED_PAD_BASE 7.0
 
-#define SPEED_LEFT_INSET 10.0
+#define SPEED_LEFT_INSET 2.0
 #define SPEED_LANDSCAPE_LEFT_INSET 54.0
 
 // YTVideoOverlay's "Video Overlay" settings section.
@@ -260,12 +261,16 @@ static YTQTMButton *SpeedMakeButton(NSString *title, NSString *accessibilityLabe
 
     UIView *container = [[UIView alloc] initWithFrame:CGRectZero];
     container.tag = kSpeedContainerTag;
-    container.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.32];
-    container.layer.shadowColor = [UIColor blackColor].CGColor;
-    container.layer.shadowOpacity = 0.55;
-    container.layer.shadowRadius = 10.0;
-    container.layer.shadowOffset = CGSizeMake(0.0, 3.0);
-    container.layer.masksToBounds = NO;
+    container.backgroundColor = [UIColor clearColor];
+
+    CAShapeLayer *oval = [CAShapeLayer layer];
+    oval.name = @"SpeedOverlayOval";
+    oval.fillColor = [[UIColor blackColor] colorWithAlphaComponent:0.32].CGColor;
+    oval.shadowColor = [UIColor blackColor].CGColor;
+    oval.shadowOpacity = 0.55;
+    oval.shadowRadius = 10.0;
+    oval.shadowOffset = CGSizeMake(0.0, 3.0);
+    [container.layer insertSublayer:oval atIndex:0];
 
     YTQTMButton *plus = SpeedMakeButton(@"+", @"Increase playback speed", kSpeedPlusTag);
     [plus addTarget:self action:@selector(speedDidTapPlus:) forControlEvents:UIControlEventTouchUpInside];
@@ -335,7 +340,20 @@ static YTQTMButton *SpeedMakeButton(NSString *title, NSString *accessibilityLabe
     }
 
     container.frame = CGRectMake(left, top, width, height);
-    container.layer.cornerRadius = height / 2.0;
+
+    CAShapeLayer *oval = nil;
+    for (CALayer *sublayer in container.layer.sublayers) {
+        if ([sublayer.name isEqualToString:@"SpeedOverlayOval"]) {
+            oval = (CAShapeLayer *)sublayer;
+            break;
+        }
+    }
+    if (oval) {
+        oval.frame = container.bounds;
+        UIBezierPath *path = [UIBezierPath bezierPathWithOvalInRect:container.bounds];
+        oval.path = path.CGPath;
+        oval.shadowPath = path.CGPath;
+    }
 
     UIView *plus = [container viewWithTag:kSpeedPlusTag];
     UIView *display = [container viewWithTag:kSpeedDisplayTag];
