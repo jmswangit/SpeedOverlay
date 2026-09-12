@@ -1,5 +1,6 @@
 #import <UIKit/UIKit.h>
 #import <float.h>
+#import <objc/runtime.h>
 #import <YouTubeHeader/UIView+YouTube.h>
 #import <YouTubeHeader/YTColor.h>
 #import <YouTubeHeader/YTDefaultTypeStyle.h>
@@ -13,9 +14,15 @@
 #define SPEED_BUTTON_GAP 6.0
 #define SPEED_LEFT_INSET 10.0
 
+// View tags for our injected controls.
+static const NSInteger kSpeedContainerTag = 'scnt';
+static const NSInteger kSpeedMinusTag = 'smns';
+static const NSInteger kSpeedDisplayTag = 'sdsp';
+static const NSInteger kSpeedPlusTag = 'spls';
+
 static NSString *const SpeedOverlayUpdateNotification = @"SpeedOverlayUpdateNotification";
 
-// Properties/methods that exist at runtime but are missing from YouTubeHeader.
+// Methods that exist at runtime but are missing from YouTubeHeader.
 @interface YTQTMButton (SpeedOverlay)
 @property (nonatomic, strong, readwrite) UIColor *customTitleColor;
 @end
@@ -73,8 +80,9 @@ static NSUInteger NearestSpeedIndex(float rate) {
     return best;
 }
 
-static YTQTMButton *SpeedMakeButton(NSString *title, NSString *accessibilityLabel) {
+static YTQTMButton *SpeedMakeButton(NSString *title, NSString *accessibilityLabel, NSInteger tag) {
     YTQTMButton *button = [%c(YTQTMButton) textButton];
+    button.tag = tag;
     button.accessibilityLabel = accessibilityLabel;
     button.customTitleColor = [%c(YTColor) white1];
     YTDefaultTypeStyle *style = [%c(YTTypeStyle) defaultTypeStyle];
@@ -133,11 +141,6 @@ static YTQTMButton *SpeedMakeButton(NSString *title, NSString *accessibilityLabe
 
 %hook YTMainAppVideoPlayerOverlayViewController
 
-%property (retain, nonatomic) UIView *speedControlsView;
-%property (retain, nonatomic) YTQTMButton *speedMinusButton;
-%property (retain, nonatomic) YTQTMButton *speedDisplayButton;
-%property (retain, nonatomic) YTQTMButton *speedPlusButton;
-
 - (void)viewDidLoad {
     %orig;
     [self speedSetupControls];
@@ -155,26 +158,26 @@ static YTQTMButton *SpeedMakeButton(NSString *title, NSString *accessibilityLabe
 
 %new(v@:)
 - (void)speedSetupControls {
-    if (self.speedControlsView) {
+    if ([self.view viewWithTag:kSpeedContainerTag]) {
         return;
     }
 
     UIView *container = [[UIView alloc] initWithFrame:CGRectZero];
+    container.tag = kSpeedContainerTag;
     container.backgroundColor = [UIColor clearColor];
 
-    self.speedPlusButton = SpeedMakeButton(@"+", @"Increase playback speed");
-    [self.speedPlusButton addTarget:self action:@selector(speedDidTapPlus:) forControlEvents:UIControlEventTouchUpInside];
+    YTQTMButton *plus = SpeedMakeButton(@"+", @"Increase playback speed", kSpeedPlusTag);
+    [plus addTarget:self action:@selector(speedDidTapPlus:) forControlEvents:UIControlEventTouchUpInside];
 
-    self.speedDisplayButton = SpeedMakeButton(gCurrentSpeedText, @"Reset playback speed to 1x");
-    [self.speedDisplayButton addTarget:self action:@selector(speedDidTapDisplay:) forControlEvents:UIControlEventTouchUpInside];
+    YTQTMButton *display = SpeedMakeButton(gCurrentSpeedText, @"Reset playback speed to 1x", kSpeedDisplayTag);
+    [display addTarget:self action:@selector(speedDidTapDisplay:) forControlEvents:UIControlEventTouchUpInside];
 
-    self.speedMinusButton = SpeedMakeButton(@"−", @"Decrease playback speed");
-    [self.speedMinusButton addTarget:self action:@selector(speedDidTapMinus:) forControlEvents:UIControlEventTouchUpInside];
+    YTQTMButton *minus = SpeedMakeButton(@"−", @"Decrease playback speed", kSpeedMinusTag);
+    [minus addTarget:self action:@selector(speedDidTapMinus:) forControlEvents:UIControlEventTouchUpInside];
 
-    [container addSubview:self.speedPlusButton];
-    [container addSubview:self.speedDisplayButton];
-    [container addSubview:self.speedMinusButton];
-    self.speedControlsView = container;
+    [container addSubview:plus];
+    [container addSubview:display];
+    [container addSubview:minus];
     [self.view addSubview:container];
 
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(speedUpdateDisplay:) name:SpeedOverlayUpdateNotification object:nil];
@@ -182,8 +185,8 @@ static YTQTMButton *SpeedMakeButton(NSString *title, NSString *accessibilityLabe
 
 %new(v@:)
 - (void)speedLayoutControls {
-    UIView *container = self.speedControlsView;
-    if (!container || !container.superview) {
+    UIView *container = [self.view viewWithTag:kSpeedContainerTag];
+    if (!container) {
         return;
     }
 
@@ -197,9 +200,9 @@ static YTQTMButton *SpeedMakeButton(NSString *title, NSString *accessibilityLabe
                                  (bounds.height - totalHeight) / 2.0,
                                  width,
                                  totalHeight);
-    self.speedPlusButton.frame = CGRectMake(0.0, 0.0, width, height);
-    self.speedDisplayButton.frame = CGRectMake(0.0, height + gap, width, height);
-    self.speedMinusButton.frame = CGRectMake(0.0, (height + gap) * 2.0, width, height);
+    [container viewWithTag:kSpeedPlusTag].frame = CGRectMake(0.0, 0.0, width, height);
+    [container viewWithTag:kSpeedDisplayTag].frame = CGRectMake(0.0, height + gap, width, height);
+    [container viewWithTag:kSpeedMinusTag].frame = CGRectMake(0.0, (height + gap) * 2.0, width, height);
 
     [self.view bringSubviewToFront:container];
 }
@@ -221,7 +224,8 @@ static YTQTMButton *SpeedMakeButton(NSString *title, NSString *accessibilityLabe
 
 %new(v@:@)
 - (void)speedUpdateDisplay:(id)note {
-    [self.speedDisplayButton setTitle:gCurrentSpeedText forState:UIControlStateNormal];
+    YTQTMButton *display = (YTQTMButton *)[self.view viewWithTag:kSpeedDisplayTag];
+    [display setTitle:gCurrentSpeedText forState:UIControlStateNormal];
 }
 
 %new(v@:f)
