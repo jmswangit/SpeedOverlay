@@ -1,0 +1,9 @@
+Package: com.jmswangit.speedoverlay
+Name: SpeedOverlay
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: Replacement playback speed controls for iOS YouTube with a working, live current-speed display.
+Maintainer: jmswangit
+Author: jmswangit
+Section: Tweaks
+Depends: mobilesubstrate (>= 0.9.5000), firmware (>= 15.0)
