@@ -343,8 +343,10 @@ static YTQTMButton *SpeedMakeButton(NSString *title, NSString *accessibilityLabe
         }
     }
     if (oval) {
+        CGFloat ovalWidth = width / 2.0;
+        CGRect ovalRect = CGRectMake((width - ovalWidth) / 2.0, 0.0, ovalWidth, height);
         oval.frame = container.bounds;
-        UIBezierPath *path = [UIBezierPath bezierPathWithRoundedRect:container.bounds cornerRadius:container.bounds.size.width / 4.0];
+        UIBezierPath *path = [UIBezierPath bezierPathWithRoundedRect:ovalRect cornerRadius:ovalWidth / 2.0];
         oval.path = path.CGPath;
         oval.shadowPath = path.CGPath;
     }
