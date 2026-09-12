@@ -7,6 +7,8 @@
 #import <YouTubeHeader/YTMainAppVideoPlayerOverlayViewController.h>
 #import <YouTubeHeader/YTPlayerViewController.h>
 #import <YouTubeHeader/YTQTMButton.h>
+#import <YouTubeHeader/YTSettingsSectionItem.h>
+#import <YouTubeHeader/YTSettingsViewController.h>
 #import <YouTubeHeader/YTTypeStyle.h>
 
 #define SPEED_COLUMN_WIDTH 96.0
@@ -18,6 +20,9 @@
 #define SPEED_LEFT_INSET 10.0
 #define SPEED_LANDSCAPE_LEFT_INSET 54.0
 
+// YTVideoOverlay's "Video Overlay" settings section.
+#define YT_VIDEO_OVERLAY_SECTION 1222
+
 // View tags for our injected controls.
 static const NSInteger kSpeedContainerTag = 'scnt';
 static const NSInteger kSpeedMinusTag = 'smns';
@@ -27,6 +32,7 @@ static const NSInteger kSpeedPlusTag = 'spls';
 static NSString *const SpeedOverlayUpdateNotification = @"SpeedOverlayUpdateNotification";
 static NSString *const SpeedOverlayVisibilityNotification = @"SpeedOverlayVisibilityNotification";
 static NSString *const SpeedOverlayVisibilityKey = @"visible";
+static NSString *const SpeedOverlayEnabledKey = @"SpeedOverlayEnabled";
 
 // Methods that exist at runtime but are missing from YouTubeHeader.
 @interface YTQTMButton (SpeedOverlay)
@@ -47,8 +53,13 @@ static NSString *const SpeedOverlayVisibilityKey = @"visible";
 - (void)speedDidTapDisplay:(id)sender;
 - (void)speedUpdateDisplay:(id)note;
 - (void)speedControlsVisibilityChanged:(NSNotification *)note;
+- (void)speedRefreshVisibility;
 - (void)speedApply:(float)rate;
 - (void)speedStep:(int)direction;
+@end
+
+@interface YTSettingsViewController (SpeedOverlay)
+- (YTSettingsSectionItem *)speedOverlaySettingsItem;
 @end
 
 static NSArray<NSNumber *> *SpeedValues() {
@@ -71,7 +82,16 @@ static NSString *SpeedLabel(float rate) {
 
 static float gCurrentRate = 1.0f;
 static NSString *gCurrentSpeedText = @"1x";
+static BOOL gControlsVisible = YES;
 static __weak YTPlayerViewController *gPlayerViewController = nil;
+
+static BOOL SpeedOverlayEnabled() {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    if ([defaults objectForKey:SpeedOverlayEnabledKey] == nil) {
+        return YES;
+    }
+    return [defaults boolForKey:SpeedOverlayEnabledKey];
+}
 
 static NSUInteger NearestSpeedIndex(float rate) {
     NSArray<NSNumber *> *values = SpeedValues();
@@ -205,6 +225,7 @@ static YTQTMButton *SpeedMakeButton(NSString *title, NSString *accessibilityLabe
 
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(speedUpdateDisplay:) name:SpeedOverlayUpdateNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(speedControlsVisibilityChanged:) name:SpeedOverlayVisibilityNotification object:nil];
+    [self speedRefreshVisibility];
 }
 
 %new(v@:)
@@ -262,16 +283,22 @@ static YTQTMButton *SpeedMakeButton(NSString *title, NSString *accessibilityLabe
 - (void)speedUpdateDisplay:(id)note {
     YTQTMButton *display = (YTQTMButton *)[self.view viewWithTag:kSpeedDisplayTag];
     [display setTitle:gCurrentSpeedText forState:UIControlStateNormal];
+    [self speedRefreshVisibility];
 }
 
 %new(v@:@)
 - (void)speedControlsVisibilityChanged:(NSNotification *)note {
+    gControlsVisible = [note.userInfo[SpeedOverlayVisibilityKey] boolValue];
+    [self speedRefreshVisibility];
+}
+
+%new(v@:)
+- (void)speedRefreshVisibility {
     UIView *container = [self.view viewWithTag:kSpeedContainerTag];
     if (!container) {
         return;
     }
-    BOOL visible = [note.userInfo[SpeedOverlayVisibilityKey] boolValue];
-    container.hidden = !visible;
+    container.hidden = !(SpeedOverlayEnabled() && gControlsVisible);
 }
 
 %new(v@:f)
@@ -306,8 +333,52 @@ static YTQTMButton *SpeedMakeButton(NSString *title, NSString *accessibilityLabe
 
 %end
 
+%group Settings
+
+%hook YTSettingsViewController
+
+- (void)setSectionItems:(NSMutableArray<YTSettingsSectionItem *> *)items forCategory:(NSUInteger)category title:(NSString *)title titleDescription:(NSString *)titleDescription headerHidden:(BOOL)headerHidden {
+    if (category == YT_VIDEO_OVERLAY_SECTION) {
+        NSMutableArray *newItems = [items mutableCopy];
+        [newItems addObject:[self speedOverlaySettingsItem]];
+        %orig(newItems, category, title, titleDescription, headerHidden);
+        return;
+    }
+    %orig;
+}
+
+- (void)setSectionItems:(NSMutableArray<YTSettingsSectionItem *> *)items forCategory:(NSUInteger)category title:(NSString *)title icon:(id)icon titleDescription:(NSString *)titleDescription headerHidden:(BOOL)headerHidden {
+    if (category == YT_VIDEO_OVERLAY_SECTION) {
+        NSMutableArray *newItems = [items mutableCopy];
+        [newItems addObject:[self speedOverlaySettingsItem]];
+        %orig(newItems, category, title, icon, titleDescription, headerHidden);
+        return;
+    }
+    %orig;
+}
+
+%new(@@:)
+- (YTSettingsSectionItem *)speedOverlaySettingsItem {
+    return [%c(YTSettingsSectionItem) switchItemWithTitle:@"SpeedOverlay"
+                                         titleDescription:@"Replacement speed controls with a live current-speed display"
+                                  accessibilityIdentifier:nil
+                                                 switchOn:SpeedOverlayEnabled()
+                                              switchBlock:^BOOL (YTSettingsCell *cell, BOOL enabled) {
+        [[NSUserDefaults standardUserDefaults] setBool:enabled forKey:SpeedOverlayEnabledKey];
+        [[NSUserDefaults standardUserDefaults] synchronize];
+        [[NSNotificationCenter defaultCenter] postNotificationName:SpeedOverlayUpdateNotification object:nil];
+        return YES;
+    }
+                                            settingItemId:0];
+}
+
+%end
+
+%end
+
 %ctor {
     %init(Video);
     %init(Controls);
     %init(Overlay);
+    %init(Settings);
 }
