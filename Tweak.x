@@ -21,6 +21,7 @@
 #define SPEED_COLUMN_WIDTH_BASE 52.0
 #define SPEED_GAP_BASE 8.0
 #define SPEED_SIDE_PAD 8.0
+#define SPEED_VERTICAL_PAD 0.0
 
 #define SPEED_LEFT_INSET 0.0
 #define SPEED_LANDSCAPE_LEFT_INSET 54.0
@@ -303,11 +304,12 @@ static YTQTMButton *SpeedMakeButton(NSString *title, NSString *accessibilityLabe
     CGFloat stepHeight = SPEED_STEP_BASE * scale;
     CGFloat displayHeight = SPEED_DISPLAY_HEIGHT_BASE * scale;
     CGFloat gap = SPEED_GAP_BASE * scale;
-    CGFloat pad = SPEED_SIDE_PAD;
+    CGFloat padX = SPEED_SIDE_PAD;
+    CGFloat padY = SPEED_VERTICAL_PAD;
 
     CGFloat contentHeight = displayHeight + stepHeight * 2.0 + gap * 2.0;
-    CGFloat width = column + pad * 2.0;
-    CGFloat height = contentHeight + pad * 2.0;
+    CGFloat width = column + padX * 2.0;
+    CGFloat height = contentHeight + padY * 2.0;
     CGSize bounds = self.view.bounds.size;
 
     // Use the window (full screen) rather than the video view, which is 16:9
@@ -355,9 +357,9 @@ static YTQTMButton *SpeedMakeButton(NSString *title, NSString *accessibilityLabe
     UIView *display = [container viewWithTag:kSpeedDisplayTag];
     UIView *minus = [container viewWithTag:kSpeedMinusTag];
 
-    plus.frame = CGRectMake(pad, pad, column, stepHeight);
-    display.frame = CGRectMake(pad, pad + stepHeight + gap, column, displayHeight);
-    minus.frame = CGRectMake(pad, pad + stepHeight + gap + displayHeight + gap, column, stepHeight);
+    plus.frame = CGRectMake(padX, padY, column, stepHeight);
+    display.frame = CGRectMake(padX, padY + stepHeight + gap, column, displayHeight);
+    minus.frame = CGRectMake(padX, padY + stepHeight + gap + displayHeight + gap, column, stepHeight);
 
     ((YTQTMButton *)plus).titleLabel.font = SpeedFont(SPEED_STEP_FONT_BASE * scale);
     ((YTQTMButton *)minus).titleLabel.font = SpeedFont(SPEED_STEP_FONT_BASE * scale);
