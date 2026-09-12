@@ -39,7 +39,6 @@ static NSString *const SpeedOverlayUpdateNotification = @"SpeedOverlayUpdateNoti
 static NSString *const SpeedOverlayVisibilityNotification = @"SpeedOverlayVisibilityNotification";
 static NSString *const SpeedOverlayVisibilityKey = @"visible";
 static NSString *const SpeedOverlayEnabledKey = @"SpeedOverlayEnabled";
-static NSString *const SpeedOverlayPositionKey = @"SpeedOverlayPosition";
 static NSString *const SpeedOverlaySizeKey = @"SpeedOverlaySize";
 
 // Methods that exist at runtime but are missing from YouTubeHeader.
@@ -103,47 +102,27 @@ static BOOL SpeedOverlayEnabled(void) {
     return [defaults boolForKey:SpeedOverlayEnabledKey];
 }
 
-static NSInteger SpeedOverlayPosition(void) {
-    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-    if ([defaults objectForKey:SpeedOverlayPositionKey] == nil) {
-        return 1; // Middle
-    }
-    return [defaults integerForKey:SpeedOverlayPositionKey];
-}
-
 static NSInteger SpeedOverlaySize(void) {
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     if ([defaults objectForKey:SpeedOverlaySizeKey] == nil) {
         return 1; // Medium
     }
-    return [defaults integerForKey:SpeedOverlaySizeKey];
+    NSInteger size = [defaults integerForKey:SpeedOverlaySizeKey];
+    if (size < 0) {
+        size = 0;
+    }
+    if (size > 1) {
+        size = 1;
+    }
+    return size;
 }
 
 static CGFloat SpeedSizeScale(void) {
-    switch (SpeedOverlaySize()) {
-        case 0:
-            return 0.70;
-        case 2:
-            return 1.40;
-        default:
-            return 1.00;
-    }
-}
-
-static NSString *SpeedPositionName(NSInteger position) {
-    NSArray<NSString *> *names = @[@"Top", @"Middle", @"Bottom"];
-    if (position < 0 || position >= (NSInteger)names.count) {
-        position = 1;
-    }
-    return names[position];
+    return SpeedOverlaySize() == 0 ? 0.70 : 1.00;
 }
 
 static NSString *SpeedSizeName(NSInteger size) {
-    NSArray<NSString *> *names = @[@"Small", @"Medium", @"Large"];
-    if (size < 0 || size >= (NSInteger)names.count) {
-        size = 1;
-    }
-    return names[size];
+    return size == 0 ? @"Small" : @"Medium";
 }
 
 static NSUInteger NearestSpeedIndex(float rate) {
@@ -322,18 +301,7 @@ static YTQTMButton *SpeedMakeButton(NSString *title, NSString *accessibilityLabe
         left = MAX(SPEED_LANDSCAPE_LEFT_INSET, self.view.safeAreaInsets.left + SPEED_LEFT_INSET);
     }
 
-    CGFloat top;
-    switch (SpeedOverlayPosition()) {
-        case 0:
-            top = bounds.height * 0.16;
-            break;
-        case 2:
-            top = bounds.height * 0.70;
-            break;
-        default:
-            top = (bounds.height - height) / 2.0;
-            break;
-    }
+    CGFloat top = (bounds.height - height) / 2.0;
 
     container.frame = CGRectMake(left, top, width, height);
 
@@ -504,26 +472,6 @@ static YTQTMButton *SpeedMakeButton(NSString *title, NSString *accessibilityLabe
     }
                                       settingItemId:0]];
 
-    [items addObject:[itemClass itemWithTitle:@"Position"
-                          accessibilityIdentifier:nil
-                              detailTextBlock:^NSString *() {
-        return SpeedPositionName(SpeedOverlayPosition());
-    }
-                                  selectBlock:^BOOL (YTSettingsCell *cell, NSUInteger index) {
-        NSArray *rows = @[
-            [self speedPickerRowWithTitle:@"Top" key:SpeedOverlayPositionKey value:0],
-            [self speedPickerRowWithTitle:@"Middle" key:SpeedOverlayPositionKey value:1],
-            [self speedPickerRowWithTitle:@"Bottom" key:SpeedOverlayPositionKey value:2],
-        ];
-        YTSettingsPickerViewController *picker = [[%c(YTSettingsPickerViewController) alloc] initWithNavTitle:@"Position"
-                                                                                          pickerSectionTitle:nil
-                                                                                                        rows:rows
-                                                                                           selectedItemIndex:SpeedOverlayPosition()
-                                                                                             parentResponder:[self parentResponder]];
-        [self pushViewController:picker];
-        return YES;
-    }]];
-
     [items addObject:[itemClass itemWithTitle:@"Size"
                           accessibilityIdentifier:nil
                               detailTextBlock:^NSString *() {
@@ -533,7 +481,6 @@ static YTQTMButton *SpeedMakeButton(NSString *title, NSString *accessibilityLabe
         NSArray *rows = @[
             [self speedPickerRowWithTitle:@"Small" key:SpeedOverlaySizeKey value:0],
             [self speedPickerRowWithTitle:@"Medium" key:SpeedOverlaySizeKey value:1],
-            [self speedPickerRowWithTitle:@"Large" key:SpeedOverlaySizeKey value:2],
         ];
         YTSettingsPickerViewController *picker = [[%c(YTSettingsPickerViewController) alloc] initWithNavTitle:@"Size"
                                                                                           pickerSectionTitle:nil
