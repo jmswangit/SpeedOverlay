@@ -403,7 +403,11 @@ static YTQTMButton *SpeedMakeButton(NSString *title, NSString *accessibilityLabe
     if (!container) {
         return;
     }
-    container.hidden = !(SpeedOverlayEnabled() && gControlsVisible);
+    BOOL visible = SpeedOverlayEnabled() && gControlsVisible;
+    container.userInteractionEnabled = visible;
+    // Use alpha (not hidden) so this animates with YouTube's own controls,
+    // which fade inside a UIView animation block.
+    container.alpha = visible ? 1.0 : 0.0;
 }
 
 %new(v@:f)
