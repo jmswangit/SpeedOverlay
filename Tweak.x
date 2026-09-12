@@ -20,7 +20,7 @@
 #define SPEED_DISPLAY_FONT_BASE 16.0
 #define SPEED_COLUMN_WIDTH_BASE 52.0
 #define SPEED_GAP_BASE 8.0
-#define SPEED_PAD_BASE 7.0
+#define SPEED_SIDE_PAD 8.0
 
 #define SPEED_LEFT_INSET 2.0
 #define SPEED_LANDSCAPE_LEFT_INSET 54.0
@@ -303,7 +303,7 @@ static YTQTMButton *SpeedMakeButton(NSString *title, NSString *accessibilityLabe
     CGFloat stepHeight = SPEED_STEP_BASE * scale;
     CGFloat displayHeight = SPEED_DISPLAY_HEIGHT_BASE * scale;
     CGFloat gap = SPEED_GAP_BASE * scale;
-    CGFloat pad = SPEED_PAD_BASE * scale;
+    CGFloat pad = SPEED_SIDE_PAD;
 
     CGFloat contentHeight = displayHeight + stepHeight * 2.0 + gap * 2.0;
     CGFloat width = column + pad * 2.0;
@@ -350,7 +350,7 @@ static YTQTMButton *SpeedMakeButton(NSString *title, NSString *accessibilityLabe
     }
     if (oval) {
         oval.frame = container.bounds;
-        UIBezierPath *path = [UIBezierPath bezierPathWithOvalInRect:container.bounds];
+        UIBezierPath *path = [UIBezierPath bezierPathWithRoundedRect:container.bounds cornerRadius:container.bounds.size.width / 2.0];
         oval.path = path.CGPath;
         oval.shadowPath = path.CGPath;
     }
